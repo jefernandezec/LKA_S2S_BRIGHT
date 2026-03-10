@@ -1,2 +1,2 @@
-# India_S2S
-Two-stage PMM-based S2S imputation to reconstruct poverty and inequality trend 2017-22
+# LKA_S2S
+Two-stage PMM-based S2S imputation to estimate a poverty trend 2019-2024 using BRIGHT data
