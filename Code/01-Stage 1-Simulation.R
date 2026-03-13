@@ -1,12 +1,7 @@
-### This code requires the harmonized HCES and PLFS 2022 data sets. Implements
-### S2S using Lasso-based PMM constrained by state and household type
+### This code requires the harmonized HIES 2019 and BRIGHT 2024 data sets. Implements
+### S2S using Lasso-based PMM constrained by district and income quintile
 ### and uses Mahalanobis distance to find the nearest neighbor.
 
-
-# parallel set
-numCores <- detectCores()
-cl <- makeCluster(numCores-1)
-registerDoParallel(cl)
 
 #####Define custom functions####
 
@@ -31,34 +26,40 @@ geometric_mean <- function(x, na.rm = TRUE) {
 sim = nsim1
 
 #Define variables to be used in the models
-#Extract variable names starting with "hh_" and "sh_"
-hh_vars = c("hhsize","hhsize_sq","age_avg","avg_age_sq","share_dep","share_kids","sh_mem_014",
-            "sh_mem_1564","sh_mem_male","has_in_school","sh_in_school")
-hhh_vars = c("buddhist_hhh","married_hhh","sinhala_hhh","female_hhh","age_hhh", 
-             "edu_hhh_none","edu_hhh_prim","edu_hhh_sec","edu_hhh_secincomp","edu_hhh_high")
-econ_vars = c("hh_main_agri","hh_main_ind","hh_main_serv","have_agri_emp","have_constr_emp",
-              "have_ind_emp","have_public_emp","have_semiskilled_worker", "sh_selfempl","public_hhh")
-disab_vars = c("has_conc_disab","has_comms_disab","eye_disab_hhh","hear_disab_hhh") #larger differences so dropping for now- can use in step 2
-inc_vars    = c("ln_rpcinc1", "sh_wages","sh_selfemp")
-oth_vars    = c("urban","district")
+vars1=setdiff(names(data.don),names(data.rec))
+#vars1=setdiff(vars1,c("welfare","ratio_tot"))
+vars2=setdiff(names(data.rec),names(data.don))
 
-#Combine the covariate names
-#covariates <- names(data.rec) #to include all available variables in receiver data set
-covariates <- c(hh_vars,hhh_vars, econ_vars, inc_vars ,oth_vars,"hidseq") #include mx vars
+#common_vars <- intersect(names(data.don), names(data.rec))
 
-# #covariates <- c("hhsize","hhsize_sq","age_avg","avg_age_sq","share_dep","share_kids","sh_in_school",
-#                 "sh_mem_male","buddhist_hhh","married_hhh","sinhala_hhh","female_hhh","age_hhh", 
-#                 "edu_hhh_none", "hh_main_agri","hh_main_ind","have_public_emp","sh_wages",
-#                 "has_conc_disab","has_comms_disab","hear_disab_hhh","sh_ecactive",
-#                 "ln_rpcinc1","hidseq")
-covariates <- unique(covariates)
-list(covariates)
+var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
+           "hhno", "nhh","hhid_tiloka","structure","area","weight","age_hhh",
+           "HH_nonagriprofit","HH_agritotal_profit","sector_1","sector_2",                  
+           "sector_3","year","hhid","welfare","hh_mem_0" , "sh_mem_0",
+           "hh_mem_1","sh_mem_1","hh_mem_2","sh_mem_2", "hh_mem_3",
+           "sh_mem_3", "hh_mem_4", "sh_mem_4","hh_mem_male", "hh_mem_fem",
+           "have_heart_disease","have_blood_pressure" ,"have_diabetes",
+           "have_asthma","have_kidney_disease","have_arthritis" ,
+           "have_mental_illness","have_any_chronillness","have_no_chronicillness",
+           "house_tenure", "HH_wages","HH_wages","HH_wages_pc","HH_wage_quintile",
+           "HH_agritotal_profit_pc","HH_agriinc_quintile",            
+           "HH_nonagriprofit_pc","HH_nonagri_quintile","HH_total_empincome",
+           "HH_total_empincome_pc","HH_totinc_quintile","HH_totinc_pc_quintile",
+           "wages_hhh","HHH_wage_quintile","hh_agri_inc","hh_industry_inc" ,          
+           "hh_services_inc","hh_pensions","hh_samurdhi_aswes","hh_elder" ,
+           "hh_tb","hh_disability","hh_pensions_pc",
+           "hh_samurdhi_aswes_pc","hh_elder_pc","hh_tb_pc","hh_disability_pc",
+           "HH_monthly_exp_comp","HH_monthly_exp_comp1","HH_monthly_exp_comp2",      
+           "HH_monthly_exp_comp_pc","HH_monthly_exp_comp1_pc",
+           "HH_monthly_exp_comp2_pc","popwt","cpi_base2013","lpindex1",
+           "avg_cpi","rpcexpcomp","rpcexpcomp1","rpcexpcomp2")
+           
+covariates=setdiff(names(data.don),var2excl)
 
-data.rec$fic_dep_var=1
 # Create the formula 
 formula.mod.a <- as.formula(paste("welfare ~", 
                             paste(covariates, collapse = " + ")))
-formula.mod.b <- as.formula(paste("fic_dep_var ~", 
+formula.mod.b <- as.formula(paste("rpcexpcomp ~", 
                                  paste(covariates, collapse = " + ")))
 
   #prepare global matching parameters
@@ -68,8 +69,6 @@ formula.mod.b <- as.formula(paste("fic_dep_var ~",
   #empty objects to save results
   #matching
   simcons_match=subset(data.rec,sel=c(hhid)) # here we save welfare
-  simcons_share_19=subset(data.rec,sel=c(hhid)) # here we save the share (sh_ynyl19)
-  simcons_share_23=subset(data.rec,sel=c(hhid)) # here we save the share (sh_ynyl19)
   #prediction
   simcons_pred=subset(data.rec,sel=c(hhid))# here we save welfare
   
@@ -84,7 +83,6 @@ formula.mod.b <- as.formula(paste("fic_dep_var ~",
   X.samp.a =build.x(formula = formula.mod.a, 
                     data.don,
                     contrasts = FALSE)
-  
   #Simulation loop
   set.seed(seed)
   foreach (j=1:sim) %do% { #replace to dopar later
@@ -97,8 +95,8 @@ formula.mod.b <- as.formula(paste("fic_dep_var ~",
       sample_frac(n.a)
     
     #Make sure all donation classes have sufficient data
-    if (min(table(train.a$district,train.a$urban))>0){
-      group.v <- c("district","urban")  # donation classes
+    if (min(table(train.a$district,train.a$HH_totinc_pc_quintile))>0){
+      group.v <- c("district","HH_totinc_pc_quintile")  # donation classes
     }  else {
       group.v <- c("district")  # donation classes
     }
@@ -109,6 +107,10 @@ formula.mod.b <- as.formula(paste("fic_dep_var ~",
     #Design matrix for training model
     mod.a=lm(welfare~.,data=train.a)
     X.a = model.matrix(mod.a)
+    common_vars.X <- intersect(colnames(X.a), colnames(X.samp.b))
+    X.a <- X.a[, common_vars.X, drop = FALSE]
+    #X.samp.b <- X.samp.b[, common_vars.X, drop = FALSE]
+    
     sd_cols <- apply(X.a, 2, function(z) sd(as.numeric(z), na.rm = TRUE))
     X.a     <- X.a[, is.finite(sd_cols) & sd_cols > 0, drop = FALSE]
     y.a = as.matrix(train.a$welfare)
@@ -201,90 +203,58 @@ formula.mod.b <- as.formula(paste("fic_dep_var ~",
   fA.wrnd <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
                           mtc.ids=rnd.2$mtc.ids,
                           z.vars=don.vars)  
-  fA.wrnd.c = fA.wrnd[,c("hhid","welfare")]
-  fA.wrnd.s19 = fA.wrnd[,c("hhid","sh_ynyl19")]
-  fA.wrnd.s23 = fA.wrnd[,c("hhid","sh_ynyl23")]
-  names(fA.wrnd.c)[2]=paste("welfare_",j,sep="")
-  names(fA.wrnd.s19)[2]=paste("share_",j,sep="")
-  names(fA.wrnd.s23)[2]=paste("share_",j,sep="")
-  simcons_match=merge(simcons_match,fA.wrnd.c,by="hhid")
-  simcons_share_19=merge(simcons_share_19,fA.wrnd.s19,by="hhid")
-  simcons_share_23=merge(simcons_share_23,fA.wrnd.s23,by="hhid")
-  rm(samp.atemp,samp.btemp,fA.wrnd,fA.wrnd.c,
-     fA.wrnd.s19,fA.wrnd.s23,rnd.2)
+  fA.wrnd$welfare = with(fA.wrnd,ratio*rpcexpcomp)
+  fA.wrnd = fA.wrnd[,c("hhid","welfare")]
+  simcons_match=merge(simcons_match,fA.wrnd,by="hhid")
+  rm(samp.atemp,samp.btemp,fA.wrnd,rnd.2)
   }
 
-stopCluster(cl)
-  
+
   
 #save simulations results
 #R-squared
-write.csv(r2,file=paste(datapath,
-   "cleaned/Outputs/Intermediate/Simulations_R2_",sim,".csv",sep=""),
+write.csv(r2,file=paste(path,
+   "Outputs/Intermediate/Simulations_R2_",sim,".csv",sep=""),
             row.names = FALSE)
 #Model used
-write.csv(md,file=paste(datapath,
-    "cleaned/Outputs/Intermediate/Simulations_model_used_",sim,".csv",sep=""),
+write.csv(md,file=paste(path,
+    "Outputs/Intermediate/Simulations_model_used_",sim,".csv",sep=""),
             row.names = FALSE)
   
   
 #Ensembles match consumption
-  # simcons_match$welfare_mean=apply(simcons_match[,-1],
-  #                                    1,mean,na.rm=TRUE)
-  # simcons_match$welfare_median=apply(simcons_match[,-1],
-  #                                      1,median,na.rm=TRUE)
-  # simcons_match$welfare_geom=apply(simcons_match[,-1],
-  #                                    1,geometric_mean,na.rm=TRUE)
+  simcons_match$welfare_mean=apply(simcons_match[,-1],
+                                     1,mean,na.rm=TRUE)
+  simcons_match$welfare_median=apply(simcons_match[,-1],
+                                       1,median,na.rm=TRUE)
+  simcons_match$welfare_geom=apply(simcons_match[,-1],
+                                     1,geometric_mean,na.rm=TRUE)
 write.csv(simcons_match,file=paste(datapath,
-        "cleaned/Stage 1/Final/Simulations_match_",sim,".csv",sep=""),
+        "Simulations_match_",sim,".csv",sep=""),
         row.names = FALSE)
 saveRDS(simcons_match,file=paste(datapath,
-        "cleaned/Stage 1/Final/Simulations_match_",sim,".rds",sep=""))
-
-
-# #Ensembles share 19
-# simcons_share$share_mean=apply(simcons_share[,-1],
-#                                  1,mean,na.rm=TRUE)
-# simcons_share$share_median=apply(simcons_share[,-1],
-#                                    1,median,na.rm=TRUE)
-# #simcons_share$share_geom=apply(simcons_share[,-1],
-# #                                 1,geometric_mean,na.rm=TRUE)
-# simcons_share$share_geom=simcons_share$share_median #geometric mean cannot be 
-# #calculated since you have zeros
-
-write.csv(simcons_share_19,file=paste(datapath,
-                "cleaned/Stage 1/Final/Simulations_share_19_",sim,".csv",sep=""),
-          row.names = FALSE)
-saveRDS(simcons_share_19,file=paste(datapath,
-                "cleaned/Stage 1/Final/Simulations_share_19_",sim,".rds",sep=""))
-
-
-write.csv(simcons_share_23,file=paste(datapath,
-                "cleaned/Stage 1/Final/Simulations_share_23_",sim,".csv",sep=""),
-          row.names = FALSE)
-saveRDS(simcons_share_23,file=paste(datapath,
-                "cleaned/Stage 1/Final/Simulations_share_23_",sim,".rds",sep=""))
+        "Simulations_match_",sim,".rds",sep=""))
 
 
 # #Ensembles pred
-# simcons_pred$welfare_mean=apply(simcons_pred[,-1],
-#                                    1,mean,na.rm=TRUE)
-# simcons_pred$welfare_median=apply(simcons_pred[,-1],
-#                                      1,median,na.rm=TRUE)
-# simcons_pred$welfare_geom=apply(simcons_pred[,-1],
-#                                    1,geometric_mean,na.rm=TRUE)
+simcons_pred$welfare_mean=apply(simcons_pred[,-1],
+                                   1,mean,na.rm=TRUE)
+simcons_pred$welfare_median=apply(simcons_pred[,-1],
+                                     1,median,na.rm=TRUE)
+simcons_pred$welfare_geom=apply(simcons_pred[,-1],
+                                   1,geometric_mean,na.rm=TRUE)
 
 write.csv(simcons_pred,file=paste(datapath,
-       "cleaned/Stage 1/Final/Simulations_pred_",sim,".csv",sep=""),
+       "Simulations_pred_",sim,".csv",sep=""),
           row.names = FALSE)
 saveRDS(simcons_pred,file=paste(datapath,
-      "cleaned/Stage 1/Final/Simulations_pred_",sim,".rds",sep=""))
+      "Simulations_pred_",sim,".rds",sep=""))
 
 #Ensemble coefficients
 coefs$coef=apply(coefs, 1,mean,na.rm=TRUE)
 
-write.csv(coefs,file=paste(datapath,
-      "cleaned/Outputs/Intermediate/Simulations_coefficients_",sim,".csv",
+write.csv(coefs,file=paste(path,
+      "Outputs/Intermediate/Simulations_coefficients_",sim,".csv",
        sep=""),
           row.names = TRUE)
 

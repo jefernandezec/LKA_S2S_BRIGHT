@@ -1,9 +1,8 @@
 # Data cleaning and construction
 
 ####Prepare receiver survey#####
-data.rec=read_dta(paste(datapath,"cleaned/lfs2019_clean.dta",sep=""))
-data.rec=read_dta(paste(datapath,
-  "/Data/Stage 1/Cleaned/IND_2022_PLFS_v01_M_v02_A_s2s_HCES_to_PLFS.dta",sep=""))
+data.rec=read_dta(paste(datapath,"BRIGHT_Comp_202425.dta",sep=""))
+
 #create sequential IDs
 data.rec$hidseq=seq(1:nrow(data.rec))
 
@@ -20,37 +19,27 @@ missing_report.rec <- data.rec %>%
                  names_to = "Variable", values_to = "PercentMissing")
 subset(missing_report.rec,PercentMissing>0)
 #based on report, these variables are excluded only when using linear models
-data.rec=subset(data.rec,sel=-c(num_agri_emp,
-                                num_indexcons_emp,
-                                num_cons_emp,
-                                num_ind_emp,
-                                num_serv_emp,
-                                num_public_emp,
-                                num_pvt_emp,
-                                num_family_worker,
-                                num_employer,
-                                num_self_emp))
+data.rec=subset(data.rec,sel=-c(dep_ratio,sex_ratio))
+data.rec <- data.rec %>% 
+  select(-starts_with("dist_"))  %>% 
+  select(-starts_with("prov_"))
 
 data.rec=na.omit(data.rec)
+vars.to.factor <- c("sector", "province", "floor", "roof",
+          "HH_totinc_pc_quintile", "wall_type", "type_toilet",
+          "water_source", "HH_agriinc_pc_quintile",
+          "HH_nonagri_pc_quintile", "HH_wage_pc_quintile")
+
+data.rec[vars.to.factor] <- lapply(data.rec[vars.to.factor], factor)
+data.rec$b_year=2024-data.rec$age_hhh
 
 #####Prepare donor survey#####
-data.don=read_dta(paste(datapath,"cleaned/hies2019_clean.dta",sep=""))
+data.don=read_dta(paste(datapath,"HIES_Comp_2019.dta",sep=""))
 
-data.don=read_dta(paste(datapath,
-                        "/Data/Stage 1/Cleaned/HCES22_s2s.dta",sep=""))
 #create sequential Ids
 data.don$hidseq=seq(1:nrow(data.don))
 
 #Additional clean and construction
-#Regroup state dummies
-#data.don$state <- max.col(data.don[, state_vars])
-#correct state variable for state 26
-#data.don$state = ifelse(data.don$state<=25,data.don$state,data.don$state+1)
-#data.don$statenum = data.don$state
-#data.don$state = as.factor(data.don$state)
-#Regroup hh type
-#data.don$hh_type <- as.factor(max.col(data.don[, type_vars]))
-#Drop dummies for state and hhtype, remove rows with NAs in consumption
 data.don <- data.don %>% 
     filter(!is.na(welfare))
 #hh age squared
@@ -61,9 +50,13 @@ missing_report.don <- data.don %>%
     pivot_longer(cols = everything(), 
                  names_to = "Variable", values_to = "PercentMissing")
 subset(missing_report.don,PercentMissing>0)
-#data.don=subset(data.don,sel=-c(sex_ratio))
 
+data.don <- data.don %>% 
+  select(-starts_with("dist_"))  %>% 
+  select(-starts_with("prov_"))
 
-### Load Excel file with states names
-states=read_excel(paste0(datapath,
-                         "/Data/Stage 1/Cleaned/states.xlsx"))
+data.don=na.omit(data.don)
+data.don[vars.to.factor] <- lapply(data.don[vars.to.factor], factor)
+data.don$b_year=2019-data.don$age_hhh
+data.don$ratio=with(data.don,welfare/rpcexpcomp)
+

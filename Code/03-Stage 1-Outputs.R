@@ -8,21 +8,18 @@
 #                      "cleaned/Stage 1/Final/Imputed_LFS_19_match_share.dta",
 #                      sep="")) 
 #data.don=read_dta(paste(datapath,"cleaned/hies2019_clean.dta",sep="")) 
-#create sequential Ids
-#data.don$hidseq=seq(1:nrow(data.don))
-#data.don <- data.don %>% 
-#    filter(!is.na(welfare))
-#hh age squared
-#data.don$hh_head_age_sq = with(data.don,age_hhh^2)
+
+data.rec2$welfare=data.rec2$welfare_median
 
 # 2. Subset and add survey identifier
 lfs <- data.rec2 %>%
   filter(!is.na(welfare)) %>%
-  select(district, sector, welfare, popwt) %>%
-  mutate(survey = "LFS")
+  select(district, sector, welfare, popweight,rpcexpcomp,rpcexpcomp1,rpcexpcomp2) %>%
+  rename(popwt=popweight)%>%
+  mutate(survey = "BRIGHT")
 
 hies <- data.don %>%
-  select(district, sector, welfare, popwt) %>%
+  select(district, sector, welfare, popwt,rpcexpcomp,rpcexpcomp1,rpcexpcomp2) %>%
   mutate(survey = "HIES")
 
 # 3. Convert any labelled columns to plain numeric.
@@ -63,10 +60,24 @@ ggplot(df, aes(x = log(welfare), weight = popwt,
   geom_density(alpha = 0.4, adjust=1.5) +
   labs(x = "Log Consumption",
        y = "Density",
-       title = "Original and Imputed Log Consumption by Survey (2019)")
+       title = "Density of HIES 2019 and BRIGHT 2024 Consumption")
 
 ggsave(paste(path,
-             "/Outputs/Main/Figures/figure 8a.png",sep=""),
+             "/Outputs/Main/Figures/Density.png",sep=""),
+       width = 30, height = 20, units = "cm")
+
+###Figure X
+
+#Density of comparable consumption
+ggplot(df, aes(x = log(rpcexpcomp), weight = popwt,
+               fill = survey)) +
+  geom_density(alpha = 0.4, adjust=1.5) +
+  labs(x = "Log Consumption",
+       y = "Density",
+       title = "Density of HIES 2019 and BRIGHT 2024 Comparable Consumption (rpcexpcomp)")
+
+ggsave(paste(path,
+             "/Outputs/Main/Figures/Density comparable consumption.png",sep=""),
        width = 30, height = 20, units = "cm")
 
 ####Figure 8b
@@ -88,7 +99,7 @@ ggplot(df_ecdf, aes(x = log(welfare), y = ecdf, color = survey)) +
   geom_step() +
   labs(x = "Log Consumption",
        y = "Density",
-       title = "ECDF of Original and Imputed Log Consumption by survey (2019)")+
+       title = "ECDF of HIES 2019 and BRIGHT 2024 Log Consumption")+
   geom_vline(xintercept = line300,linetype="dashed",size=0.5)+
   geom_vline(xintercept = line420,linetype="dashed",size=0.5)+
   geom_vline(xintercept = line830,linetype="dashed",size=0.5)+
@@ -97,7 +108,7 @@ ggplot(df_ecdf, aes(x = log(welfare), y = ecdf, color = survey)) +
   annotate("text", x = line830, y = 0, label = "8.3", vjust = 1.5,size=1)
 
 ggsave(paste(path,
-        "/Outputs/Main/Figures/figure 8b.png",sep=""),
+        "/Outputs/Main/Figures/ecdf.png",sep=""),
        width = 30, height = 20, units = "cm")
 
 
@@ -107,9 +118,9 @@ ggsave(paste(path,
 gin1= gini.wtd(df[df$survey=="HIES",]$welfare,
          df[df$survey=="HIES",]$popwt)
 
-gin2 = gini.wtd(df[df$survey=="LFS",]$welfare,
-         df[df$survey=="LFS",]$popwt)
-tab = data.frame(survey=c("HIES","LFS"),gini=c(gin1,gin2))
+gin2 = gini.wtd(df[df$survey=="BRIGHT",]$welfare,
+         df[df$survey=="BRIGHT",]$popwt)
+tab = data.frame(survey=c("HIES","BRIGHT"),gini=c(gin1,gin2))
 write.csv(tab,paste(path,
    "/Outputs/Main/Tables/table 2 gini.csv",sep=""))
 
@@ -177,7 +188,7 @@ ggplot(plot_data, aes(x = survey, y = mean, fill = survey)) +
   labs(
     x = "Sector",
     y = "Poverty Rate (%)",
-    title = "Original and Imputed Poverty Rates (95% Confidence Intervals)"
+    title = "HIES 2019 and BRIGHT 2024 Poverty Rates (95% Confidence Intervals)"
   ) +
   theme_minimal() +
   theme(legend.position = "none")
