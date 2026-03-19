@@ -59,7 +59,7 @@ covariates=setdiff(names(data.don),var2excl)
 # Create the formula 
 formula.mod.a <- as.formula(paste("welfare ~", 
                             paste(covariates, collapse = " + ")))
-formula.mod.b <- as.formula(paste("rpcexpcomp ~", 
+formula.mod.b <- as.formula(paste("rpcexpcomp1 ~", 
                                  paste(covariates, collapse = " + ")))
 
   #prepare global matching parameters
@@ -203,7 +203,7 @@ formula.mod.b <- as.formula(paste("rpcexpcomp ~",
   fA.wrnd <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
                           mtc.ids=rnd.2$mtc.ids,
                           z.vars=don.vars)  
-  fA.wrnd$welfare = with(fA.wrnd,ratio*rpcexpcomp)
+  fA.wrnd$welfare = with(fA.wrnd,ratio*rpcexpcomp1)
   fA.wrnd = fA.wrnd[,c("hhid","welfare")]
   simcons_match=merge(simcons_match,fA.wrnd,by="hhid")
   rm(samp.atemp,samp.btemp,fA.wrnd,rnd.2)

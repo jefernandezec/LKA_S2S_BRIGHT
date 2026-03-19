@@ -66,7 +66,7 @@ n.a = .9
 seed = 1729
 
 # Matching parameters stage 1
-X.mtc1=c("ymatch","rpcexpcomp","hhmem","b_year") # nearest neighbor search variables
+X.mtc1=c("ymatch","rpcexpcomp1","hhmem","b_year") # nearest neighbor search variables
 don.vars1=c("ratio") #variables to be imputed 
 
 

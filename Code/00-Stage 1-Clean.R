@@ -49,14 +49,15 @@ missing_report.don <- data.don %>%
     summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
     pivot_longer(cols = everything(), 
                  names_to = "Variable", values_to = "PercentMissing")
-subset(missing_report.don,PercentMissing>0)
+subset(missing_report.don,PercentMissing>1)
 
 data.don <- data.don %>% 
   select(-starts_with("dist_"))  %>% 
-  select(-starts_with("prov_"))
+  select(-starts_with("prov_"))  %>%
+  select(-c(dep_ratio,sex_ratio,sh_wages,sh_selfemp))
 
 data.don=na.omit(data.don)
 data.don[vars.to.factor] <- lapply(data.don[vars.to.factor], factor)
 data.don$b_year=2019-data.don$age_hhh
-data.don$ratio=with(data.don,welfare/rpcexpcomp)
+data.don$ratio=with(data.don,welfare/rpcexpcomp1)
 
