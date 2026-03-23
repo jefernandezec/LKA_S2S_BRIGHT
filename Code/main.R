@@ -66,9 +66,11 @@ n.a = .9
 seed = 1729
 
 # Matching parameters stage 1
-X.mtc1=c("ymatch","rpcexpcomp1","hhmem","b_year") # nearest neighbor search variables
-don.vars1=c("ratio") #variables to be imputed 
+X.mtc1=c("ymatch","rpcexpfood","hhmem","b_year") # nearest neighbor search variables
+don.vars1=c("ratio.f") #variables to be imputed 
 
+X.mtc2=c("ymatch","rpcexpnfood","hhmem","b_year") # nearest neighbor search variables
+don.vars2=c("ratio.nf") #variables to be imputed 
 
 # Parameters to convert vectors in 2019 prices to 2021 PPP
 cpi21=0.88027848 #this is to convert to 2021PPPs

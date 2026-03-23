@@ -14,12 +14,12 @@ data.rec2$welfare=data.rec2$welfare_median
 # 2. Subset and add survey identifier
 lfs <- data.rec2 %>%
   filter(!is.na(welfare)) %>%
-  select(district, sector, welfare, popweight,rpcexpcomp,rpcexpcomp1,rpcexpcomp2) %>%
+  select(district, sector, welfare, popweight,rpcexptot,rpcexpfood,rpcexpnfood) %>%
   rename(popwt=popweight)%>%
   mutate(survey = "BRIGHT")
 
 hies <- data.don %>%
-  select(district, sector, welfare, popwt,rpcexpcomp,rpcexpcomp1,rpcexpcomp2) %>%
+  select(district, sector, welfare, popwt,rpcexptot,rpcexpfood,rpcexpnfood) %>%
   mutate(survey = "HIES")
 
 # 3. Convert any labelled columns to plain numeric.
@@ -40,6 +40,30 @@ hies <- hies %>%
 df <- bind_rows(lfs, hies)
 
 df=na.omit(df)
+
+#Summary statistics of comparable consumption
+vars <- c("rpcexptot", "rpcexpfood", "rpcexpnfood")
+
+results <- lapply(vars, function(v) {
+  df %>%
+    group_by(survey) %>%
+    summarise(
+      variable = v,
+      wmean    = weighted.mean(.data[[v]], w = popwt, na.rm = TRUE),
+      wmedian  = wtd.quantile(.data[[v]], weights = popwt, probs = 0.50, na.rm = TRUE),
+      wp20     = wtd.quantile(.data[[v]], weights = popwt, probs = 0.20, na.rm = TRUE),
+      wp40     = wtd.quantile(.data[[v]], weights = popwt, probs = 0.40, na.rm = TRUE),
+      .groups  = "drop"
+    )
+})
+
+summary_table <- bind_rows(results) %>%
+  arrange(survey, variable)
+
+print(summary_table)
+
+
+
 
 df$pov30 = ifelse(df$welfare*(12/365)/cpi21/icp21<3,1,0)
 df$pov42 = ifelse(df$welfare*(12/365)/cpi21/icp21<4.2,1,0)
@@ -69,15 +93,39 @@ ggsave(paste(path,
 ###Figure X
 
 #Density of comparable consumption
-ggplot(df, aes(x = log(rpcexpcomp), weight = popwt,
+ggplot(df, aes(x = log(rpcexptot), weight = popwt,
                fill = survey)) +
   geom_density(alpha = 0.4, adjust=1.5) +
   labs(x = "Log Consumption",
        y = "Density",
-       title = "Density of HIES 2019 and BRIGHT 2024 Comparable Consumption (rpcexpcomp)")
+       title = "Density of HIES 2019 and BRIGHT 2024 Comparable Consumption")
 
 ggsave(paste(path,
              "/Outputs/Main/Figures/Density comparable consumption.png",sep=""),
+       width = 30, height = 20, units = "cm")
+
+#Density of comparable consumption - food
+ggplot(df, aes(x = log(rpcexpfood), weight = popwt,
+               fill = survey)) +
+  geom_density(alpha = 0.4, adjust=1.5) +
+  labs(x = "Log Consumption",
+       y = "Density",
+       title = "Density of HIES 2019 and BRIGHT 2024 Comparable Consumption - Food")
+
+ggsave(paste(path,
+             "/Outputs/Main/Figures/Density comparable consumption food.png",sep=""),
+       width = 30, height = 20, units = "cm")
+
+#Density of comparable consumption - non-food
+ggplot(df, aes(x = log(rpcexpnfood), weight = popwt,
+               fill = survey)) +
+  geom_density(alpha = 0.4, adjust=1.5) +
+  labs(x = "Log Consumption",
+       y = "Density",
+       title = "Density of HIES 2019 and BRIGHT 2024 Comparable Consumption - Non-food")
+
+ggsave(paste(path,
+             "/Outputs/Main/Figures/Density comparable consumption nonfood.png",sep=""),
        width = 30, height = 20, units = "cm")
 
 ####Figure 8b
@@ -122,7 +170,7 @@ gin2 = gini.wtd(df[df$survey=="BRIGHT",]$welfare,
          df[df$survey=="BRIGHT",]$popwt)
 tab = data.frame(survey=c("HIES","BRIGHT"),gini=c(gin1,gin2))
 write.csv(tab,paste(path,
-   "/Outputs/Main/Tables/table 2 gini.csv",sep=""))
+   "Outputs/Main/Tables/table 2 gini.csv",sep=""))
 
 
 #Overall Poverty

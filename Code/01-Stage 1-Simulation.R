@@ -51,21 +51,19 @@ var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
            "hh_samurdhi_aswes_pc","hh_elder_pc","hh_tb_pc","hh_disability_pc",
            "HH_monthly_exp_comp","HH_monthly_exp_comp1","HH_monthly_exp_comp2",      
            "HH_monthly_exp_comp_pc","HH_monthly_exp_comp1_pc",
-           "HH_monthly_exp_comp2_pc","popwt","cpi_base2013","lpindex1",
-           "avg_cpi","rpcexpcomp","rpcexpcomp1","rpcexpcomp2")
+           "HH_monthly_exp_comp2_pc","popwt","lpindex1",
+           "avg_cpi","rpcexptot","quintiles","cpi_base2013",
+           "cpi_base2013_food",
+           "cpi_base2013_nonfood","avg2019","avg2019food","avg2019nonfood")
            
 covariates=setdiff(names(data.don),var2excl)
 
 # Create the formula 
 formula.mod.a <- as.formula(paste("welfare ~", 
                             paste(covariates, collapse = " + ")))
-formula.mod.b <- as.formula(paste("rpcexpcomp1 ~", 
+formula.mod.b <- as.formula(paste("rpcexptot ~", 
                                  paste(covariates, collapse = " + ")))
 
-  #prepare global matching parameters
-  X.mtc=X.mtc1
-  don.vars=don.vars1
-  
   #empty objects to save results
   #matching
   simcons_match=subset(data.rec,sel=c(hhid)) # here we save welfare
@@ -193,20 +191,48 @@ formula.mod.b <- as.formula(paste("rpcexpcomp1 ~",
   row.names(samp.btemp)=as.character(seq(1:nrow(samp.btemp)))
   row.names(samp.atemp)=as.character(seq(1:nrow(samp.atemp)))
 
+  #########
+  ##FOOD###
+  #########
+  
   #Matching using lasso predictions and random nearest neighbor distance hot deck (D'Orazio, 2017)
-  rnd.2 <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
-                            match.vars=X.mtc, don.class=group.v,
+  rnd.f <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
+                            match.vars=X.mtc1, don.class=group.v,
                             dist.fun="Mahalanobis",
                             cut.don="min")
   
   #Create fused dataset
-  fA.wrnd <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
-                          mtc.ids=rnd.2$mtc.ids,
-                          z.vars=don.vars)  
-  fA.wrnd$welfare = with(fA.wrnd,ratio*rpcexpcomp1)
+  fA.wrnd.f <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
+                          mtc.ids=rnd.f$mtc.ids,
+                          z.vars=don.vars1)  
+  fA.wrnd.f$welfare.f = with(fA.wrnd.f,ratio.f*rpcexpfood)
+  fA.wrnd.f = fA.wrnd.f[,c("hhid","welfare.f")]
+  #############
+  ##NON-FOOD###
+  #############
+  
+  #Matching using lasso predictions and random nearest neighbor distance hot deck (D'Orazio, 2017)
+  rnd.nf <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
+                            match.vars=X.mtc2, don.class=group.v,
+                            dist.fun="Mahalanobis",
+                            cut.don="min")
+  
+  #Create fused dataset
+  fA.wrnd.nf <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
+                            mtc.ids=rnd.nf$mtc.ids,
+                            z.vars=don.vars2)  
+  fA.wrnd.nf$welfare.nf = with(fA.wrnd.nf,ratio.nf*rpcexpnfood)
+  fA.wrnd.nf = fA.wrnd.nf[,c("hhid","welfare.nf")]
+  
+  #Combine food and non-food
+  fA.wrnd = merge(fA.wrnd.f,fA.wrnd.nf,by="hhid")
+  fA.wrnd$welfare =rowSums(fA.wrnd[, c("welfare.f", "welfare.nf")],
+                           na.rm = TRUE)
   fA.wrnd = fA.wrnd[,c("hhid","welfare")]
+  names(fA.wrnd)=c("hhid",paste("welfare_",j,sep=""))
+  
   simcons_match=merge(simcons_match,fA.wrnd,by="hhid")
-  rm(samp.atemp,samp.btemp,fA.wrnd,rnd.2)
+  rm(samp.atemp,samp.btemp,fA.wrnd,fA.wrnd.f,fA.wrnd.nf,rnd.f,rnd.nf)
   }
 
 
