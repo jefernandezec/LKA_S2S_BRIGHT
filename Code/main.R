@@ -56,20 +56,20 @@ outpath <- "C:/Users/wb553773/Github/LKA_S2S_BRIGHT/Outputs/"
 # Set global parameters
 
 # Number of simulations stage 1
-nsim1=100
+nsim1=20
 
 
 # Resampling parameter stages 1 and 2
-n.a = .9
+n.a = .8
 
 # Seed for reproducibility
 seed = 1729
 
 # Matching parameters stage 1
-X.mtc1=c("ymatch","rpcexpfood","hhmem","b_year") # nearest neighbor search variables
+X.mtc1=c("ymatch","sh_rpcexpfood","hhmem","b_year") # nearest neighbor search variables
 don.vars1=c("ratio.f") #variables to be imputed 
 
-X.mtc2=c("ymatch","rpcexpnfood","hhmem","b_year") # nearest neighbor search variables
+X.mtc2=c("ymatch","sh_rpcexpnfood","hhmem","b_year") # nearest neighbor search variables
 don.vars2=c("ratio.nf") #variables to be imputed 
 
 # Parameters to convert vectors in 2019 prices to 2021 PPP

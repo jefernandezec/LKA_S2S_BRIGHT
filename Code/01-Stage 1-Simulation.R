@@ -3,25 +3,6 @@
 ### and uses Mahalanobis distance to find the nearest neighbor.
 
 
-#####Define custom functions####
-
-# R squared
-compute_r_squared <- function(actual, predicted) {
-  ss_total <- sum((actual - mean(actual))^2)  # Total sum of squares
-  ss_residual <- sum((actual - predicted)^2)  # Residual sum of squares
-  r_squared <- 1 - (ss_residual / ss_total)   # Compute R²
-  return(r_squared)
-}
-######
-geometric_mean <- function(x, na.rm = TRUE) {
-    if (na.rm) {
-        x <- x[!is.na(x)]
-    }
-    if(any(x <= 0)) {
-        stop("All values must be positive to compute the geometric mean.")
-    }
-    exp(mean(log(x)))
-}
 #number of simulations
 sim = nsim1
 
@@ -44,7 +25,7 @@ var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
            "house_tenure", "HH_wages","HH_wages","HH_wages_pc","HH_wage_quintile",
            "HH_agritotal_profit_pc","HH_agriinc_quintile",            
            "HH_nonagriprofit_pc","HH_nonagri_quintile","HH_total_empincome",
-           "HH_total_empincome_pc","HH_totinc_quintile","HH_totinc_pc_quintile",
+           "HH_total_empincome_pc","HH_totinc_quintile",
            "wages_hhh","HHH_wage_quintile","hh_agri_inc","hh_industry_inc" ,          
            "hh_services_inc","hh_pensions","hh_samurdhi_aswes","hh_elder" ,
            "hh_tb","hh_disability","hh_pensions_pc",
@@ -53,8 +34,9 @@ var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
            "HH_monthly_exp_comp_pc","HH_monthly_exp_comp1_pc",
            "HH_monthly_exp_comp2_pc","popwt","lpindex1",
            "avg_cpi","rpcexptot","quintiles","cpi_base2013",
-           "cpi_base2013_food",
-           "cpi_base2013_nonfood","avg2019","avg2019food","avg2019nonfood")
+           "cpi_base2013_food","sh_rpcexpfood","sh_rpcexpnfood",
+           "cpi_base2013_nonfood","avg2019","avg2019food","avg2019nonfood",
+           "rpcexpfood","rpcexpnfood")
            
 covariates=setdiff(names(data.don),var2excl)
 
@@ -89,15 +71,16 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
 
     #Sample (preserves state participation in sample)
     train.a <- data.don %>%
-      group_by(district) %>%
+      group_by(province) %>%
       sample_frac(n.a)
     
     #Make sure all donation classes have sufficient data
-    if (min(table(train.a$district,train.a$HH_totinc_pc_quintile))>0){
-      group.v <- c("district","HH_totinc_pc_quintile")  # donation classes
-    }  else {
-      group.v <- c("district")  # donation classes
-    }
+    #if (min(table(train.a$district,train.a$HH_totinc_pc_quintile))>0){
+    #  group.v <- c("district","HH_totinc_pc_quintile")  # donation classes
+    #}  else {
+      group.v <- c("province")  # donation classes
+    #}
+    train.a.orig=train.a
     #subset to model covariates
     train.a = train.a[,unique(c("welfare",covariates))] 
     #remove NAs for training
@@ -148,7 +131,7 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
     
     #Subset common variables
     X.newb =X.samp.b[,colnames(X.a)]
-    X.a =X.samp.a[,colnames(X.newb)]
+    X.a =X.a[,colnames(X.newb)]  #Donor data is train.a
     
     if (r2_l<=r2_al) {
       Yb<-predict(lasso_best1, newx=X.newb, s=best.lambda1)
@@ -170,8 +153,8 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
   simcons_pred=merge(simcons_pred,Pred_Yb,by="hhid")
   
   #Calculate consumption predictions on both surveys
-  X.samp.b.pred=data.table(cbind(X.samp.b[,"hidseq"], exp(Yb)-1))
-  X.samp.a.pred=data.table(cbind(X.samp.a[,"hidseq"], exp(Ya)-1))
+  X.samp.b.pred=data.table(cbind(X.samp.b[,"hidseq"], Yb))
+  X.samp.a.pred=data.table(cbind(X.a[,"hidseq"], Ya))
   rm(Yb,Ya,Ya.l,Ya.al)
   colnames(X.samp.b.pred)=c("hidseq","ymatch")
   colnames(X.samp.a.pred)=c("hidseq","ymatch")
@@ -179,9 +162,9 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
   #Merge predictions with original base
   samp.btemp=merge.data.table(data.rec,X.samp.b.pred,
                               by="hidseq",all=TRUE,sort=TRUE)
-  samp.atemp=merge.data.table(data.don,X.samp.a.pred,
+  samp.atemp=merge.data.table(train.a.orig,X.samp.a.pred,
                               by="hidseq",all=TRUE,sort=TRUE)
-  rm(train.a,y.a,X.samp.b.pred,X.samp.a.pred,X.a,X.newb,
+  rm(train.a,train.a.orig,y.a,X.samp.b.pred,X.samp.a.pred,X.a,X.newb,
      mod.a,cv.lasso1,best.lambda1,
      lasso_best1,adapt_wgts1,
      ridge_coefs1,cv.ridge1, coef_temp,Pred_Yb,
@@ -190,6 +173,11 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
   samp.atemp=data.frame(samp.atemp)
   row.names(samp.btemp)=as.character(seq(1:nrow(samp.btemp)))
   row.names(samp.atemp)=as.character(seq(1:nrow(samp.atemp)))
+  #standardize variables before calculating distance
+  # samp.atemp[X.mtc1] <- lapply(samp.atemp[X.mtc1], 
+  #                              function(x) as.numeric(scale(x)))
+  # samp.btemp[X.mtc1] <- lapply(samp.btemp[X.mtc1], 
+  #                              function(x) as.numeric(scale(x)))
 
   #########
   ##FOOD###
@@ -207,6 +195,13 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
                           z.vars=don.vars1)  
   fA.wrnd.f$welfare.f = with(fA.wrnd.f,ratio.f*rpcexpfood)
   fA.wrnd.f = fA.wrnd.f[,c("hhid","welfare.f")]
+  
+  #standardize variables before calculating distance
+  # samp.atemp[X.mtc2] <- lapply(samp.atemp[X.mtc2], 
+  #                              function(x) as.numeric(scale(x)))
+  # samp.btemp[X.mtc2] <- lapply(samp.btemp[X.mtc2], 
+  #                              function(x) as.numeric(scale(x)))
+  
   #############
   ##NON-FOOD###
   #############
