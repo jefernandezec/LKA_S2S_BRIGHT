@@ -36,7 +36,10 @@ var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
            "avg_cpi","rpcexptot","quintiles","cpi_base2013",
            "cpi_base2013_food","sh_rpcexpfood","sh_rpcexpnfood",
            "cpi_base2013_nonfood","avg2019","avg2019food","avg2019nonfood",
-           "rpcexpfood","rpcexpnfood")
+           "rpcexpfood","rpcexpnfood","HH_monthly_rent","HH_monthly_rent_pc",        
+           "rpcexpnfood1","rpcexprent","HH_monthly_electricity",
+           "HH_monthly_electricity_pc","HH_monthly_water","HH_monthly_water_pc",
+           "rpcexpelectricity","rpcexpwater")
            
 covariates=setdiff(names(data.don),var2excl)
 
@@ -75,8 +78,8 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
       sample_frac(n.a)
     
     #Make sure all donation classes have sufficient data
-    #if (min(table(train.a$district,train.a$HH_totinc_pc_quintile))>0){
-    #  group.v <- c("district","HH_totinc_pc_quintile")  # donation classes
+    #if (min(table(train.a$province,train.a$HH_totinc_pc_quintile))>0){
+    #  group.v <- c("province","HH_totinc_pc_quintile")  # donation classes
     #}  else {
       group.v <- c("province")  # donation classes
     #}

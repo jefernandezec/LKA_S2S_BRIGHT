@@ -12,7 +12,7 @@
 data.rec2$welfare=data.rec2$welfare_median
 
 # 2. Subset and add survey identifier
-lfs <- data.rec2 %>%
+bright <- data.rec2 %>%
   filter(!is.na(welfare)) %>%
   select(district, sector, welfare, popweight,rpcexptot,rpcexpfood,rpcexpnfood) %>%
   rename(popwt=popweight)%>%
@@ -24,7 +24,7 @@ hies <- data.don %>%
 
 # 3. Convert any labelled columns to plain numeric.
 #    Here we assume welfare and popwt might be labelled:
-lfs <- lfs %>%
+bright <- bright %>%
   mutate(
     welfare = as.numeric(welfare),
     popwt         = as.numeric(popwt)
@@ -37,7 +37,7 @@ hies <- hies %>%
   )
 
 # 4. Now you can safely row‐bind
-df <- bind_rows(lfs, hies)
+df <- bind_rows(bright, hies)
 
 df=na.omit(df)
 
@@ -189,7 +189,7 @@ tab2 = tab2 %>% rename(Sector=sector)
 
 means_long <- tab2 %>%
   pivot_longer(
-    cols = c(pov30, pov42, pov83),
+    cols = c(pov30, pov42, pov83, povnpl),
     names_to = "variable",
     values_to = "mean"
   )
@@ -219,8 +219,8 @@ plot_data <- means_long %>%
 
 # Correct labels in poverty lines
 plot_data$variable=factor(plot_data$variable,
-                levels=c("pov30","pov42","pov83"),
-                labels=c("$3.0 PPP21","$4.2 PPP21","$8.3 PPP21"))
+                levels=c("pov30","pov42","pov83","povnpl"),
+                labels=c("$3.0 PPP21","$4.2 PPP21","$8.3 PPP21", "National Line"))
 
 # Create the bar plot with error bars and facet by variable (rows) and area (columns)
 ggplot(plot_data, aes(x = survey, y = mean, fill = survey)) +

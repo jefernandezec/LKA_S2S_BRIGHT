@@ -1,5 +1,5 @@
 final_pred_df = subset(simcons_pred,select=c(hhid,welfare_mean,
-            welfare_median,welfare_geom))
+            welfare_median))
 #Keep prediction-based imputation
 data.rec2=merge(data.rec,final_pred_df,by="hhid",all.x = TRUE)
 write_dta(data.rec2,paste(datapath,

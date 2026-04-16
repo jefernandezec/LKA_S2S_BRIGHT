@@ -1,18 +1,11 @@
 ### This code requires the harmonized HIES 2019 and BRIGHT 2024 data sets. Implements
 ### S2S using Lasso-based PMM constrained by district and income quintile
 ### and uses Mahalanobis distance to find the nearest neighbor.
-### Linking variable: comparable food consumption
+### Linking variable: comparable total consumption
 
-#Working version Apr 6 2026 12:28 pm
 
 #number of simulations
 sim = nsim1
-
-X.mtc1=c("ymatch","hhmem","b_year")
-
-X.mtc2=c("ymatch","sh_rpcexpnfood","hhmem","b_year")
-
-data.don$ratio.f=with(data.don,welfare/rpcexpfood)
 
 #Define variables to be used in the models
 vars1=setdiff(names(data.don),names(data.rec))
@@ -204,7 +197,7 @@ foreach (j=1:sim) %do% { #replace to dopar later
     fA.wrnd.f <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
                               mtc.ids=rnd.f$mtc.ids,
                               z.vars=don.vars1)  
-    fA.wrnd.f$welfare = with(fA.wrnd.f,ratio.f*rpcexpfood)
+    fA.wrnd.f$welfare = with(fA.wrnd.f,ratio*rpcexptot)
     fA.wrnd.f = fA.wrnd.f[,c("hhid","welfare")]
     
     fA.wrnd = fA.wrnd.f

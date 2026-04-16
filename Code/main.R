@@ -56,7 +56,7 @@ outpath <- "C:/Users/wb553773/Github/LKA_S2S_BRIGHT/Outputs/"
 # Set global parameters
 
 # Number of simulations stage 1
-nsim1=20
+nsim1=100
 
 
 # Resampling parameter stages 1 and 2
@@ -66,11 +66,8 @@ n.a = .8
 seed = 1729
 
 # Matching parameters stage 1
-X.mtc1=c("ymatch","sh_rpcexpfood","hhmem","b_year") # nearest neighbor search variables
-don.vars1=c("ratio.f") #variables to be imputed 
-
-X.mtc2=c("ymatch","sh_rpcexpnfood","hhmem","b_year") # nearest neighbor search variables
-don.vars2=c("ratio.nf") #variables to be imputed 
+X.mtc1=c("ymatch","hhmem","b_year") # nearest neighbor search variables
+don.vars1=c("ratio") #variables to be imputed 
 
 # Parameters to convert vectors in 2019 prices to 2021 PPP
 cpi21=0.88027848 #this is to convert to 2021PPPs
@@ -95,17 +92,7 @@ geometric_mean <- function(x, na.rm = TRUE) {
 # Run the R scripts
 #Stage 1
 source(file.path(codepath, "Code/00-Stage 1-Clean.R"))
-source(file.path(codepath, "Code/01-Stage 1-Simulation.R"))
+source(file.path(codepath, "Code/01-Stage 1-Simulation v3.R"))
 source(file.path(codepath, "Code/02-Stage 1-Ensemble.R"))
 source(file.path(codepath, "Code/03-Stage 1-Outputs.R"))
-#Stage 2
-if (year==2023){
-  source(file.path(codepath, "Code/04-Stage 2-Simulation2023-XGB.R"))
-} else if (year==2024) {
-  source(file.path(codepath, "Code/04-Stage 2-Simulation2024-XGB.R"))  
-} else {
-  source(file.path(codepath, "Code/04-Stage 2-Simulation2016-XGB.R"))
-}
-source(file.path(codepath, "Code/05-Stage 2-Outputs.R"))
-
-
+source(file.path(codepath, "Code/04-Additional-Outputs.R"))  
