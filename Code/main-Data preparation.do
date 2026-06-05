@@ -1,26 +1,36 @@
-**===Main do-file for data preparation+++==============================
+**===Data preparation por the BRIGHT S2S implementation=================
 **===S2S Databases preparation =========================================
-*Author:        Marta Schoch
+*Authors:        Marta Schoch (mschoch@worldbank.org)
+*				 Tiloka da Silva
+*                Jaime Fernandez
 *Last update:	12/18/25
 *----------------------------------------------------------------------
 *====================================================================
-clear all
 
-*=== Set up =================================================================*
-global code "C:\Users\wb553773\GitHub\LKA_S2S_Main\Code\Data Preparation"
+
+clear
+set more off
+
+*global code "C:\Users\wb562318\Github\BRIGHT_PEA\Code"
+global code "C:\Users\wb553773\GitHub\BRIGHT_PEA\Code"
+
+*global data "C:/Users/wb562318/OneDrive - WBG/Documents/POV-SAR/SL/PA/Analysis/Data"
 global data "C:\Users\wb553773\WBG\Marta Schoch - Analysis\Data"
-global output "C:\Users\wb553773\WBG\Marta Schoch - Analysis\Out"
-global lfs  $data/LFS
-global hies $data/HIES	
+global lfs2019  $data/LFS
+global hies2019 $data/HIES
 
-*=== Run necessary ado files ===================================================*
-run "${code}\\ado\winsor2.ado"
-run "${code}\\ado\flagout.ado"
-	
-*=== Harmonize HIES 2019 and LFS 2016-23=======================================*
-do "${code}\\01_clean_hies_2019.do"
-do "${code}\\02_clean_microsim_2023.do"
-do "${code}\\03_clean_lfs_2016.do"
-do "${code}\\04_clean_lfs_2019.do"
-do "${code}\\05_clean_lfs_2023.do"
-	
+*global ifpri "C:\Users\wb562318\OneDrive - WBG\Documents\POV-SAR\SL\PA\Analysis\Data\IFPRI\World Bank BRIGHT"
+global ifpri "C:\Users\wb553773\WBG\Marta Schoch - Analysis\Data\IFPRI\World Bank BRIGHT"
+
+
+global long "$ifpri\Data\Long"
+global wide "$ifpri\Data\Wide"
+global rundata "$ifpri\rundata"
+global out "$ifpri\Output"
+
+//Run Code 
+do "$code/01_HIES_harmonization.do"
+do "$code/02_BRIGHT_harmonization.do"
+do "$code/03_comparable_consumption_HIES.do"
+do "$code/04_comparable_consumption_BRIGHT.do"
+do "$code/05_PreSimulation.do"

@@ -1,4 +1,5 @@
-### Estimating a poverty trend in Sri Lanka: A Survey-to-Survey Imputation Approach
+### Estimating a poverty trend in Sri Lanka using BRIGHT data: 
+### A Survey-to-Survey Imputation Approach
 ### Reproducibility Package
 ### This version: March 2 2026
 ### Authors: Jaime Fernandez Romero (jfernandezromero@worldbank.org) and

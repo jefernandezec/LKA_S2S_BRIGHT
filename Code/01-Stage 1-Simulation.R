@@ -1,6 +1,7 @@
 ### This code requires the harmonized HIES 2019 and BRIGHT 2024 data sets. Implements
 ### S2S using Lasso-based PMM constrained by district and income quintile
 ### and uses Mahalanobis distance to find the nearest neighbor.
+### Linking variable: comparable total consumption
 
 
 #number of simulations
@@ -40,49 +41,49 @@ var2excl=c(vars1,vars2,"district_name","district","month", "psu","snumber",
            "rpcexpnfood1","rpcexprent","HH_monthly_electricity",
            "HH_monthly_electricity_pc","HH_monthly_water","HH_monthly_water_pc",
            "rpcexpelectricity","rpcexpwater")
-           
+
 covariates=setdiff(names(data.don),var2excl)
 
 # Create the formula 
 formula.mod.a <- as.formula(paste("welfare ~", 
-                            paste(covariates, collapse = " + ")))
+                                  paste(covariates, collapse = " + ")))
 formula.mod.b <- as.formula(paste("rpcexptot ~", 
-                                 paste(covariates, collapse = " + ")))
+                                  paste(covariates, collapse = " + ")))
 
-  #empty objects to save results
-  #matching
-  simcons_match=subset(data.rec,sel=c(hhid)) # here we save welfare
-  #prediction
-  simcons_pred=subset(data.rec,sel=c(hhid))# here we save welfare
-  
-  #R squared
-  r2=c()
-  md=c()
-  
-  #Design matrices for applying LASSO model
-  X.samp.b =build.x(formula = formula.mod.b, 
-                    data.rec,
-                    contrasts = FALSE)
-  X.samp.a =build.x(formula = formula.mod.a, 
-                    data.don,
-                    contrasts = FALSE)
-  #Simulation loop
-  set.seed(seed)
-  foreach (j=1:sim) %do% { #replace to dopar later
+#empty objects to save results
+#matching
+simcons_match=subset(data.rec,sel=c(hhid)) # here we save welfare
+#prediction
+simcons_pred=subset(data.rec,sel=c(hhid))# here we save welfare
+
+#R squared
+r2=c()
+md=c()
+
+#Design matrices for applying LASSO model
+X.samp.b =build.x(formula = formula.mod.b, 
+                  data.rec,
+                  contrasts = FALSE)
+X.samp.a =build.x(formula = formula.mod.a, 
+                  data.don,
+                  contrasts = FALSE)
+#Simulation loop
+set.seed(seed)
+foreach (j=1:sim) %do% { #replace to dopar later
     print(paste("simulation number ",j,
                 sep=""))
-
+    
     #Sample (preserves state participation in sample)
     train.a <- data.don %>%
-      group_by(province) %>%
-      sample_frac(n.a)
+        group_by(province) %>%
+        sample_frac(n.a)
     
     #Make sure all donation classes have sufficient data
-    #if (min(table(train.a$province,train.a$HH_totinc_pc_quintile))>0){
-    #  group.v <- c("province","HH_totinc_pc_quintile")  # donation classes
-    #}  else {
-      group.v <- c("province")  # donation classes
-    #}
+    if (min(table(train.a$district,train.a$HH_totinc_pc_quintile))>0){
+        group.v <- c("district","HH_totinc_pc_quintile")  # donation classes
+    }  else {
+        group.v <- c("province")  # donation classes
+    }
     train.a.orig=train.a
     #subset to model covariates
     train.a = train.a[,unique(c("welfare",covariates))] 
@@ -99,27 +100,27 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
     X.a     <- X.a[, is.finite(sd_cols) & sd_cols > 0, drop = FALSE]
     y.a = as.matrix(train.a$welfare)
     y.a= log(y.a+1)
-  
+    
     #Estimation
     #AdapLASSO
-     cv.ridge1 = cv.glmnet(X.a, y=y.a,alpha=0)
-     ridge_coefs1 <- coef(cv.ridge1, s = "lambda.min")
-   # Compute adaptive weights (inverse of absolute Ridge coefficients)
-   # We exclude the intercept (ridge_coefs[1])
-   # Adding small value to avoid division by zero
-     adapt_wgts1 <- 1 / (abs(ridge_coefs1[-1]) + 1e-6)
-   #Fit Lasso through CV using adaptive weights
-     cv.lasso1 = cv.glmnet(X.a, y=y.a,
-                           penalty.factor = adapt_wgts1)
-     best.lambda1 = cv.lasso1$lambda.min
-     lasso_best1 <- glmnet(X.a, y=y.a, alpha = 1,
-                           lambda = best.lambda1,
-                           penalty.factor = adapt_wgts1)
-
-   #  #Predict log consumption using Adaplasso
-     Ya.al<-predict(lasso_best1, newx=X.a, s=best.lambda1)
-     r2_al <- compute_r_squared(y.a, Ya.al)
-
+    cv.ridge1 = cv.glmnet(X.a, y=y.a,alpha=0)
+    ridge_coefs1 <- coef(cv.ridge1, s = "lambda.min")
+    # Compute adaptive weights (inverse of absolute Ridge coefficients)
+    # We exclude the intercept (ridge_coefs[1])
+    # Adding small value to avoid division by zero
+    adapt_wgts1 <- 1 / (abs(ridge_coefs1[-1]) + 1e-6)
+    #Fit Lasso through CV using adaptive weights
+    cv.lasso1 = cv.glmnet(X.a, y=y.a,
+                          penalty.factor = adapt_wgts1)
+    best.lambda1 = cv.lasso1$lambda.min
+    lasso_best1 <- glmnet(X.a, y=y.a, alpha = 1,
+                          lambda = best.lambda1,
+                          penalty.factor = adapt_wgts1)
+    
+    #  #Predict log consumption using Adaplasso
+    Ya.al<-predict(lasso_best1, newx=X.a, s=best.lambda1)
+    r2_al <- compute_r_squared(y.a, Ya.al)
+    
     #LASSO
     cv.lasso2 = cv.glmnet(X.a, y=y.a, alpha=1)
     best.lambda2 = cv.lasso2$lambda.min
@@ -137,149 +138,121 @@ formula.mod.b <- as.formula(paste("rpcexptot ~",
     X.a =X.a[,colnames(X.newb)]  #Donor data is train.a
     
     if (r2_l<=r2_al) {
-      Yb<-predict(lasso_best1, newx=X.newb, s=best.lambda1)
-      coef_temp = data.frame(as.matrix(coefficients(lasso_best1)))
-      Ya=predict(lasso_best1, newx=X.a, s=best.lambda1)
+        Yb<-predict(lasso_best1, newx=X.newb, s=best.lambda1)
+        coef_temp = data.frame(as.matrix(coefficients(lasso_best1)))
+        Ya=predict(lasso_best1, newx=X.a, s=best.lambda1)
     } else {
-      Yb<-predict(lasso_best2, newx=X.newb, s=best.lambda2)
-      coef_temp = data.frame(as.matrix(coefficients(lasso_best2)))
-      Ya=predict(lasso_best2, newx=X.a, s=best.lambda2)
+        Yb<-predict(lasso_best2, newx=X.newb, s=best.lambda2)
+        coef_temp = data.frame(as.matrix(coefficients(lasso_best2)))
+        Ya=predict(lasso_best2, newx=X.a, s=best.lambda2)
     }
     
-  #Best model coefficients  
-  names(coef_temp)=paste("coef_",j,sep="") 
-  if (j==1){ coefs = coef_temp } else {coefs=cbind(coefs,coef_temp)}
-  
-  #save predictions from best model on PLFS
-  Pred_Yb=data.table(cbind(data.rec[,"hhid"], exp(Yb)-1))
-  names(Pred_Yb)=c("hhid",paste("welfare_",j,sep=""))
-  simcons_pred=merge(simcons_pred,Pred_Yb,by="hhid")
-  
-  #Calculate consumption predictions on both surveys
-  X.samp.b.pred=data.table(cbind(X.samp.b[,"hidseq"], Yb))
-  X.samp.a.pred=data.table(cbind(X.a[,"hidseq"], Ya))
-  rm(Yb,Ya,Ya.l,Ya.al)
-  colnames(X.samp.b.pred)=c("hidseq","ymatch")
-  colnames(X.samp.a.pred)=c("hidseq","ymatch")
-  
-  #Merge predictions with original base
-  samp.btemp=merge.data.table(data.rec,X.samp.b.pred,
-                              by="hidseq",all=TRUE,sort=TRUE)
-  samp.atemp=merge.data.table(train.a.orig,X.samp.a.pred,
-                              by="hidseq",all=TRUE,sort=TRUE)
-  rm(train.a,train.a.orig,y.a,X.samp.b.pred,X.samp.a.pred,X.a,X.newb,
-     mod.a,cv.lasso1,best.lambda1,
-     lasso_best1,adapt_wgts1,
-     ridge_coefs1,cv.ridge1, coef_temp,Pred_Yb,
-     r2_l,r2_al,cv.lasso2,lasso_best2,best.lambda2)
-  samp.btemp=data.frame(samp.btemp)
-  samp.atemp=data.frame(samp.atemp)
-  row.names(samp.btemp)=as.character(seq(1:nrow(samp.btemp)))
-  row.names(samp.atemp)=as.character(seq(1:nrow(samp.atemp)))
-  #standardize variables before calculating distance
-  # samp.atemp[X.mtc1] <- lapply(samp.atemp[X.mtc1], 
-  #                              function(x) as.numeric(scale(x)))
-  # samp.btemp[X.mtc1] <- lapply(samp.btemp[X.mtc1], 
-  #                              function(x) as.numeric(scale(x)))
-
-  #########
-  ##FOOD###
-  #########
-  
-  #Matching using lasso predictions and random nearest neighbor distance hot deck (D'Orazio, 2017)
-  rnd.f <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
-                            match.vars=X.mtc1, don.class=group.v,
-                            dist.fun="Mahalanobis",
-                            cut.don="min")
-  
-  #Create fused dataset
-  fA.wrnd.f <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
-                          mtc.ids=rnd.f$mtc.ids,
-                          z.vars=don.vars1)  
-  fA.wrnd.f$welfare.f = with(fA.wrnd.f,ratio.f*rpcexpfood)
-  fA.wrnd.f = fA.wrnd.f[,c("hhid","welfare.f")]
-  
-  #standardize variables before calculating distance
-  # samp.atemp[X.mtc2] <- lapply(samp.atemp[X.mtc2], 
-  #                              function(x) as.numeric(scale(x)))
-  # samp.btemp[X.mtc2] <- lapply(samp.btemp[X.mtc2], 
-  #                              function(x) as.numeric(scale(x)))
-  
-  #############
-  ##NON-FOOD###
-  #############
-  
-  #Matching using lasso predictions and random nearest neighbor distance hot deck (D'Orazio, 2017)
-  rnd.nf <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
-                            match.vars=X.mtc2, don.class=group.v,
-                            dist.fun="Mahalanobis",
-                            cut.don="min")
-  
-  #Create fused dataset
-  fA.wrnd.nf <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
-                            mtc.ids=rnd.nf$mtc.ids,
-                            z.vars=don.vars2)  
-  fA.wrnd.nf$welfare.nf = with(fA.wrnd.nf,ratio.nf*rpcexpnfood)
-  fA.wrnd.nf = fA.wrnd.nf[,c("hhid","welfare.nf")]
-  
-  #Combine food and non-food
-  fA.wrnd = merge(fA.wrnd.f,fA.wrnd.nf,by="hhid")
-  fA.wrnd$welfare =rowSums(fA.wrnd[, c("welfare.f", "welfare.nf")],
-                           na.rm = TRUE)
-  fA.wrnd = fA.wrnd[,c("hhid","welfare")]
-  names(fA.wrnd)=c("hhid",paste("welfare_",j,sep=""))
-  
-  simcons_match=merge(simcons_match,fA.wrnd,by="hhid")
-  rm(samp.atemp,samp.btemp,fA.wrnd,fA.wrnd.f,fA.wrnd.nf,rnd.f,rnd.nf)
-  }
+    #Best model coefficients  
+    names(coef_temp)=paste("coef_",j,sep="") 
+    if (j==1){ coefs = coef_temp } else {coefs=cbind(coefs,coef_temp)}
+    
+    #save predictions from best model on PLFS
+    Pred_Yb=data.table(cbind(data.rec[,"hhid"], exp(Yb)-1))
+    names(Pred_Yb)=c("hhid",paste("welfare_",j,sep=""))
+    simcons_pred=merge(simcons_pred,Pred_Yb,by="hhid")
+    
+    #Calculate consumption predictions on both surveys
+    X.samp.b.pred=data.table(cbind(X.samp.b[,"hidseq"], Yb))
+    X.samp.a.pred=data.table(cbind(X.a[,"hidseq"], Ya))
+    rm(Yb,Ya,Ya.l,Ya.al)
+    colnames(X.samp.b.pred)=c("hidseq","ymatch")
+    colnames(X.samp.a.pred)=c("hidseq","ymatch")
+    
+    #Merge predictions with original base
+    samp.btemp=merge.data.table(data.rec,X.samp.b.pred,
+                                by="hidseq",all=TRUE,sort=TRUE)
+    samp.atemp=merge.data.table(train.a.orig,X.samp.a.pred,
+                                by="hidseq",all=TRUE,sort=TRUE)
+    rm(train.a,train.a.orig,y.a,X.samp.b.pred,X.samp.a.pred,X.a,X.newb,
+       mod.a,cv.lasso1,best.lambda1,
+       lasso_best1,adapt_wgts1,
+       ridge_coefs1,cv.ridge1, coef_temp,Pred_Yb,
+       r2_l,r2_al,cv.lasso2,lasso_best2,best.lambda2)
+    samp.btemp=data.frame(samp.btemp)
+    samp.atemp=data.frame(samp.atemp)
+    row.names(samp.btemp)=as.character(seq(1:nrow(samp.btemp)))
+    row.names(samp.atemp)=as.character(seq(1:nrow(samp.atemp)))
+    #standardize variables before calculating distance
+    # samp.atemp[X.mtc1] <- lapply(samp.atemp[X.mtc1], 
+    #                              function(x) as.numeric(scale(x)))
+    # samp.btemp[X.mtc1] <- lapply(samp.btemp[X.mtc1], 
+    #                              function(x) as.numeric(scale(x)))
+    
+    #########
+    ##FOOD###
+    #########
+    
+    #Matching using lasso predictions and random nearest neighbor distance hot deck (D'Orazio, 2017)
+    rnd.f <- RANDwNND.hotdeck(data.rec=samp.btemp, data.don=samp.atemp,
+                              match.vars=X.mtc1, don.class=group.v,
+                              dist.fun="Mahalanobis",
+                              cut.don="min")
+    
+    #Create fused dataset
+    fA.wrnd.f <- create.fused(data.rec=samp.btemp, data.don=samp.atemp,
+                              mtc.ids=rnd.f$mtc.ids,
+                              z.vars=don.vars1)  
+    fA.wrnd.f$welfare = with(fA.wrnd.f,ratio*rpcexptot)
+    fA.wrnd.f = fA.wrnd.f[,c("hhid","welfare")]
+    
+    fA.wrnd = fA.wrnd.f
+    names(fA.wrnd)=c("hhid",paste("welfare_",j,sep=""))
+    
+    simcons_match=merge(simcons_match,fA.wrnd,by="hhid")
+    rm(samp.atemp,samp.btemp,fA.wrnd,fA.wrnd.f,rnd.f)
+}
 
 
-  
+
 #save simulations results
 #R-squared
 write.csv(r2,file=paste(path,
-   "Outputs/Intermediate/Simulations_R2_",sim,".csv",sep=""),
-            row.names = FALSE)
+                        "Outputs/Intermediate/Simulations_R2_",sim,".csv",sep=""),
+          row.names = FALSE)
 #Model used
 write.csv(md,file=paste(path,
-    "Outputs/Intermediate/Simulations_model_used_",sim,".csv",sep=""),
-            row.names = FALSE)
-  
-  
+                        "Outputs/Intermediate/Simulations_model_used_",sim,".csv",sep=""),
+          row.names = FALSE)
+
+
 #Ensembles match consumption
-  simcons_match$welfare_mean=apply(simcons_match[,-1],
-                                     1,mean,na.rm=TRUE)
-  simcons_match$welfare_median=apply(simcons_match[,-1],
-                                       1,median,na.rm=TRUE)
-  simcons_match$welfare_geom=apply(simcons_match[,-1],
-                                     1,geometric_mean,na.rm=TRUE)
+simcons_match$welfare_mean=apply(simcons_match[,-1],
+                                 1,mean,na.rm=TRUE)
+simcons_match$welfare_median=apply(simcons_match[,-1],
+                                   1,median,na.rm=TRUE)
+#simcons_match$welfare_geom=apply(simcons_match[,-1],
+#                                 1,geometric_mean,na.rm=TRUE)
 write.csv(simcons_match,file=paste(datapath,
-        "Simulations_match_",sim,".csv",sep=""),
-        row.names = FALSE)
+                                   "Simulations_match_",sim,".csv",sep=""),
+          row.names = FALSE)
 saveRDS(simcons_match,file=paste(datapath,
-        "Simulations_match_",sim,".rds",sep=""))
+                                 "Simulations_match_",sim,".rds",sep=""))
 
 
 # #Ensembles pred
 simcons_pred$welfare_mean=apply(simcons_pred[,-1],
-                                   1,mean,na.rm=TRUE)
+                                1,mean,na.rm=TRUE)
 simcons_pred$welfare_median=apply(simcons_pred[,-1],
-                                     1,median,na.rm=TRUE)
-simcons_pred$welfare_geom=apply(simcons_pred[,-1],
-                                   1,geometric_mean,na.rm=TRUE)
+                                  1,median,na.rm=TRUE)
+#simcons_pred$welfare_geom=apply(simcons_pred[,-1],
+#                                1,geometric_mean,na.rm=TRUE)
 
 write.csv(simcons_pred,file=paste(datapath,
-       "Simulations_pred_",sim,".csv",sep=""),
+                                  "Simulations_pred_",sim,".csv",sep=""),
           row.names = FALSE)
 saveRDS(simcons_pred,file=paste(datapath,
-      "Simulations_pred_",sim,".rds",sep=""))
+                                "Simulations_pred_",sim,".rds",sep=""))
 
 #Ensemble coefficients
 coefs$coef=apply(coefs, 1,mean,na.rm=TRUE)
 
 write.csv(coefs,file=paste(path,
-      "Outputs/Intermediate/Simulations_coefficients_",sim,".csv",
-       sep=""),
+                           "Outputs/Intermediate/Simulations_coefficients_",sim,".csv",
+                           sep=""),
           row.names = TRUE)
-
 

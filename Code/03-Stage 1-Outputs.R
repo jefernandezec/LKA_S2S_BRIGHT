@@ -3,12 +3,6 @@
 # #######
 # #######
 
-#Load vector: 
-#data.rec2 <- read_dta(paste(datapath,
-#                      "cleaned/Stage 1/Final/Imputed_LFS_19_match_share.dta",
-#                      sep="")) 
-#data.don=read_dta(paste(datapath,"cleaned/hies2019_clean.dta",sep="")) 
-
 data.rec2$welfare=data.rec2$welfare_median
 
 # 2. Subset and add survey identifier
